@@ -3,8 +3,8 @@
 #include <ArduinoJson.h>
 
 // ── WiFi credentials ──────────────────────────────────────
-const char* ssid     = "OnePlus Nord CE 3 Lite 5G";
-const char* password = "1234567qw";       
+const char* ssid     = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";       
 
 // ── LED Pins ──────────────────────────────────────────────
 #define LED1 26
@@ -43,7 +43,7 @@ Serial.begin(115200);
 }
 
 void loop() {
-  http.begin("http://10.44.101.98:3000/api/state");
+  http.begin("http://<YOUR_LOCAL_IP>:3000/api/state");
   if (http.GET() == 200) {
     StaticJsonDocument<128> doc;
     deserializeJson(doc, http.getString());
