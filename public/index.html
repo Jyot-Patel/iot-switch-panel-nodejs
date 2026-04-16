@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 LED Control</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 6px; }
+    .subtitle { font-size: 0.85rem; color: #64748b; margin-bottom: 36px; }
+
+    .card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .led-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .led-info { display: flex; align-items: center; gap: 12px; }
+
+    .dot {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: #1e3a5f;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .dot.on {
+      background: #facc15;
+      box-shadow: 0 0 8px #facc15aa;
+    }
+
+    .led-name { font-size: 1rem; font-weight: 500; }
+    .led-pin  { font-size: 0.75rem; color: #475569; margin-top: 2px; }
+
+    .toggle {
+      position: relative;
+      width: 48px; height: 26px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #334155;
+      border-radius: 26px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    .toggle input:checked + .slider { background: #0ea5e9; }
+    .toggle input:checked + .slider::before { transform: translateX(22px); }
+
+    .status-bar {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: #475569;
+      text-align: center;
+    }
+    .status-bar span { color: #22c55e; }
+    .status-bar span.err { color: #ef4444; }
+  </style>
+</head>
+<body>
+
+  <h1>LED Control</h1>
+  <p class="subtitle">via Node.js middleware</p>
+
+  <div class="card">
+    <div class="led-row">
+      <div class="led-info">
+        <div class="dot" id="dot-led1"></div>
+        <div>
+          <div class="led-name">LED 1</div>
+          <div class="led-pin">GPIO 26</div>
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-led1" onchange="setLED('led1', this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="led-row">
+      <div class="led-info">
+        <div class="dot" id="dot-led2"></div>
+        <div>
+          <div class="led-name">LED 2</div>
+          <div class="led-pin">GPIO 27</div>
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-led2" onchange="setLED('led2', this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="led-row">
+      <div class="led-info">
+        <div class="dot" id="dot-led3"></div>
+        <div>
+          <div class="led-name">LED 3</div>
+          <div class="led-pin">GPIO 14</div>
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-led3" onchange="setLED('led3', this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <p class="status-bar" id="status">Connecting...</p>
+
+  <script>
+    // Send toggle command to Node.js
+    async function setLED(led, state) {
+      try {
+        const res = await fetch('/api/led', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ led, state })
+        });
+        const data = await res.json();
+        updateUI(data.ledState);
+        setStatus('ok', 'Command sent');
+      } catch (e) {
+        setStatus('err', 'Server unreachable');
+      }
+    }
+
+    // Poll current state every 1s to keep UI in sync
+    async function pollState() {
+      try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        updateUI(data);
+        setStatus('ok', 'Connected');
+      } catch (e) {
+        setStatus('err', 'Offline');
+      }
+    }
+
+    function updateUI(state) {
+      for (const [led, on] of Object.entries(state)) {
+        const toggle = document.getElementById('toggle-' + led);
+        const dot    = document.getElementById('dot-' + led);
+        if (toggle) toggle.checked = on;
+        if (dot)    dot.classList.toggle('on', on);
+      }
+    }
+
+    function setStatus(type, msg) {
+      const el = document.getElementById('status');
+      el.innerHTML = type === 'ok'
+        ? `Status: <span>${msg}</span>`
+        : `Status: <span class="err">${msg}</span>`;
+    }
+
+    pollState();
+    setInterval(pollState, 1000);
+  </script>
+</body>
+</html>
